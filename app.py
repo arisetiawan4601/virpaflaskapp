@@ -1,5 +1,4 @@
 from __future__ import print_function
-from cv2 import setIdentity
 import pyrebase
 import firebase_admin
 from firebase_admin import credentials
@@ -44,8 +43,6 @@ users_ref = db.collection('users')
 def home():
     return "<h1>Virpa Image Processing Service Release</h1>"
 
-# https://virpaflaskapp.azurewebsites.net/side
-
 @app.route('/side', methods=['POST'])
 @app.route('/front', methods=['POST'])
 def update_record():
@@ -58,18 +55,20 @@ def update_record():
         url = storage.child("images/{}/besideBody/{}".format(id, image_name)).get_url(None)
     
     image = imutils.url_to_image(url)
-    
-    image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     height_image = image.shape[0]
     widht_image = image.shape[1]
-
     scale = 100 / height_image
 
-    __, image_thresh = cv2.threshold(image_gray, 64, 255, cv2.THRESH_BINARY_INV)
-    image_contours, _ = cv2.findContours(image_thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    kernel = np.ones((5,5),np.uint8)
+
+    # Image Processing
+    image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    image_blurred = cv2.GaussianBlur(image_gray, (9, 9), 0)
+    edges = cv2.Canny(image_blurred, 30, 150)
+    dilation = cv2.dilate(edges, kernel, iterations = 1)
+    image_contours, _ = cv2.findContours(dilation, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     image_contours_sorted = sorted(image_contours, key=cv2.contourArea)
-    edges = cv2.Canny(image, 100, 200)
     contours_poly = cv2.approxPolyDP(image_contours_sorted[-1], 3, True)
     boundrect = cv2.boundingRect(contours_poly)
     cv2.rectangle(image, (int(boundrect[0]), int(boundrect[1])), (int(boundrect[0]+boundrect[2]), int(boundrect[1]+boundrect[3])), (0,255,0), 2)
